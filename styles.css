@@ -82,7 +82,16 @@ body {
 .map-container {
   position: relative;
   width: min(90vw, 420px);
-  aspect-ratio: 400 / 600;
+  aspect-ratio: 400 / 572;
+  overflow: hidden;
+}
+
+.map-zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 .korea-map {
@@ -129,6 +138,7 @@ body {
   border-radius: 50%;
   background: #e8b04b;
   box-shadow: 0 0 0 4px rgba(232, 176, 75, 0.18);
+  transform: scale(var(--zoom-inv, 1));
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -142,14 +152,14 @@ body {
   color: #cfd8e0;
   white-space: nowrap;
   opacity: 0;
-  transform: translateY(-2px);
+  transform: scale(var(--zoom-inv, 1)) translateY(-2px);
   transition: opacity 0.15s ease, transform 0.15s ease;
   pointer-events: none;
 }
 
 .marker:hover .marker-dot,
 .marker:focus-visible .marker-dot {
-  transform: scale(1.25);
+  transform: scale(calc(var(--zoom-inv, 1) * 1.25));
   box-shadow: 0 0 0 7px rgba(232, 176, 75, 0.22);
 }
 
@@ -161,7 +171,7 @@ body {
 .marker:hover .marker-label,
 .marker:focus-visible .marker-label {
   opacity: 1;
-  transform: translateY(0);
+  transform: scale(var(--zoom-inv, 1)) translateY(0);
 }
 
 /* ---------- info panel ---------- */
