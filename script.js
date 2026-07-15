@@ -59,6 +59,12 @@ const REGIONS = [
             status: "available",
             routes: [{ id: "gyeongwondae-gil", name: "경원대길" }],
           },
+          {
+            id: "sotowanggol",
+            name: "소토왕골",
+            status: "available",
+            routes: [{ id: "sain-woojeong-gil", name: "4인의우정길" }],
+          },
         ],
       },
     ],
