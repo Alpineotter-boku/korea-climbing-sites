@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>한국의 암벽등반지</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <h1>한국의 암벽등반지</h1>
+    <p class="tagline">한국의 암벽등반지 정보를 한곳에서!</p>
+  </header>
+
+  <nav class="breadcrumb" aria-label="현재 위치">
+    <ol class="breadcrumb-list" id="breadcrumbList">
+      <!-- 경로는 script.js에서 렌더링됩니다 -->
+    </ol>
+  </nav>
+
+  <main class="map-stage">
+    <div class="map-container" id="mapContainer">
+      <svg class="korea-map" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <polygon class="korea-outline" points="160,10 210,10 235,40 250,90 270,140 285,200 290,260 280,320 265,375 245,425 220,465 195,500 165,520 140,505 120,470 105,430 95,385 80,340 70,290 65,235 70,180 85,130 75,100 95,65 120,35 140,15" />
+      </svg>
+
+      <div class="markers" id="markers">
+        <!-- 지역 마커는 script.js에서 렌더링됩니다 -->
+      </div>
+    </div>
+
+    <p class="map-hint">지역을 클릭하면 상세 정보를 볼 수 있어요.</p>
+  </main>
+
+  <aside class="info-panel" id="infoPanel" aria-hidden="true">
+    <button class="info-panel-close" id="infoPanelClose" aria-label="닫기" type="button">&times;</button>
+    <div class="info-panel-body" id="infoPanelBody"></div>
+  </aside>
+  <div class="info-panel-backdrop" id="infoPanelBackdrop"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

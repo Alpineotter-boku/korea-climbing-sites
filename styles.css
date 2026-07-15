@@ -1,0 +1,285 @@
+/* ---------- reset & base ---------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #1b2430 0%, #0e1319 60%, #090c10 100%);
+  color: #eef1f4;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* ---------- header ---------- */
+.site-header {
+  text-align: center;
+  padding: 48px 20px 16px;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+}
+
+.tagline {
+  margin: 8px 0 0;
+  color: #9aa7b5;
+  font-size: 0.95rem;
+}
+
+/* ---------- breadcrumb ---------- */
+.breadcrumb {
+  display: flex;
+  justify-content: center;
+  padding: 4px 20px 24px;
+}
+
+.breadcrumb-list {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: #7c8894;
+}
+
+.breadcrumb-item.current {
+  color: #e8b04b;
+  font-weight: 600;
+}
+
+.breadcrumb-item button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.breadcrumb-item button:hover {
+  color: #cfd8e0;
+  text-decoration: underline;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  content: "/";
+  margin-right: 6px;
+  color: #4d5b6a;
+}
+
+/* ---------- map stage ---------- */
+.map-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 64px;
+}
+
+.map-container {
+  position: relative;
+  width: min(90vw, 420px);
+  aspect-ratio: 400 / 600;
+}
+
+.korea-map {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.korea-outline {
+  fill: #212c39;
+  stroke: #3a4a5c;
+  stroke-width: 2;
+}
+
+.map-hint {
+  margin-top: 20px;
+  color: #7c8894;
+  font-size: 0.85rem;
+}
+
+/* ---------- markers ---------- */
+.markers {
+  position: absolute;
+  inset: 0;
+}
+
+.marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.marker-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e8b04b;
+  box-shadow: 0 0 0 4px rgba(232, 176, 75, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.marker.coming-soon .marker-dot {
+  background: #4d5b6a;
+  box-shadow: 0 0 0 4px rgba(77, 91, 106, 0.18);
+}
+
+.marker-label {
+  font-size: 0.8rem;
+  color: #cfd8e0;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+
+.marker:hover .marker-dot,
+.marker:focus-visible .marker-dot {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 7px rgba(232, 176, 75, 0.22);
+}
+
+.marker.coming-soon:hover .marker-dot,
+.marker.coming-soon:focus-visible .marker-dot {
+  box-shadow: 0 0 0 7px rgba(77, 91, 106, 0.22);
+}
+
+.marker:hover .marker-label,
+.marker:focus-visible .marker-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- info panel ---------- */
+.info-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(360px, 100vw);
+  background: #161c24;
+  border-left: 1px solid #2a3542;
+  padding: 24px;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  z-index: 20;
+  overflow-y: auto;
+}
+
+.info-panel.open {
+  transform: translateX(0);
+}
+
+.info-panel-close {
+  background: none;
+  border: none;
+  color: #9aa7b5;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: auto;
+  display: block;
+}
+
+.info-panel-close:hover {
+  color: #eef1f4;
+}
+
+.info-panel-body h2 {
+  margin: 12px 0 4px;
+  font-size: 1.3rem;
+}
+
+.info-panel-body p {
+  color: #9aa7b5;
+  line-height: 1.5;
+}
+
+.drill-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drill-item button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  background: #1f2833;
+  border: 1px solid #2a3542;
+  color: #eef1f4;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.drill-item button:hover,
+.drill-item button.selected {
+  background: #29343f;
+  border-color: #e8b04b;
+}
+
+.drill-item-meta {
+  color: #9aa7b5;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.next-step-note {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #23303c;
+  border-left: 3px solid #e8b04b;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  color: #cfd8e0;
+}
+
+.info-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 10, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 15;
+}
+
+.info-panel-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 480px) {
+  .site-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .info-panel {
+    width: 100vw;
+  }
+}
