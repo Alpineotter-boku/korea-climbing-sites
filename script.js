@@ -46,7 +46,22 @@ const REGIONS = [
     name: "강원도",
     x: 62,
     y: 24,
-    status: "coming-soon",
+    status: "available",
+    mountains: [
+      {
+        id: "seoraksan",
+        name: "설악산",
+        status: "available",
+        peaks: [
+          {
+            id: "seorak-nojeokbong",
+            name: "노적봉",
+            status: "available",
+            routes: [{ id: "gyeongwondae-gil", name: "경원대길" }],
+          },
+        ],
+      },
+    ],
   },
 ];
 
