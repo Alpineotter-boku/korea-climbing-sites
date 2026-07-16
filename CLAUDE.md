@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-A static, single-page site (Korean-language, `lang="ko"`) presenting climbing sites ("암벽등반지") across Korea. No build step, no package manager, no dependencies — just `index.html`, `styles.css`, and `script.js` opened directly in a browser or served as static files.
+A static, single-page site (Korean-language, `lang="ko"`) presenting climbing sites ("암벽등반지") across Korea. No build step, no package manager, no dependencies — just `index.html`, `styles.css`, `script.js`, and the `data.js` database, opened directly in a browser or served as static files.
 
-The full product plan lives in `korea-climbing-sites-project-spec.md` — read it before making architectural decisions (data model, navigation depth, tech stack), since the current code only implements a small slice of it (see "Current implementation status" below).
+The full product plan lives in `korea-climbing-sites-project-spec.md` — read it before making architectural decisions (data model, navigation depth, tech stack), since the current code implements only part of it (see "Current implementation status" below).
 
 ## Development
 
 There is no build/lint/test tooling configured. To preview changes, open `index.html` directly in a browser, or serve the directory with any static file server (e.g. `npx serve .`) and reload.
+
+- **`data.js`, not JSON, is deliberate.** The data is exposed as a global `const REGIONS` loaded via `<script src="data.js">` *before* `script.js`. This is because the site must work opened directly as a `file://` URL, where `fetch()`-ing a `.json` file is blocked by the browser's CORS policy. Keep this loading order and the global-variable shape; don't convert the data to a fetched JSON file.
+- After editing `data.js`/`script.js`, sanity-check with `node --check data.js && node --check script.js` (there is no test runner). For a fuller check, the render functions can be exercised against a minimal DOM stub under Node (see `renderRouteDetail` — it takes a plain route object).
 
 ## Target architecture (per spec)
 
@@ -47,16 +50,14 @@ Planned features beyond navigation: topo (개념도) viewer, grade display, cura
 
 ## Current implementation status
 
-The code implements levels 0–3 of the target drill-down (region → mountain → peak → route list) using vanilla JS DOM manipulation (no framework). Level 4 (full route detail — topo image, photos, external links) is a placeholder only. Real map zoom/pan is not implemented; each level after the map is rendered inside the slide-in info panel instead.
+All five levels (0–4) of the target drill-down are implemented in vanilla JS DOM manipulation (no framework). Levels 0–1 are shown on the real SVG map; levels 2–4 render inside the slide-in info panel.
 
-1. **Map view** (`index.html` `.map-stage`) — an inline SVG outline of Korea (`polygon.korea-outline`) with region markers absolutely positioned over it by percentage `x`/`y` coordinates. This is the only level with an actual map; levels 1–4 reuse the info panel.
-2. **Data** (`script.js` `REGIONS` array) — the single source of truth, already shaped close to the spec's Region → Mountain → Peak → Route hierarchy (nested `mountains[].peaks[].routes[]`, with `status: "available" | "coming-soon"` at the region/mountain/peak level to mark which branches have real data). Only 서울 → 북한산 → 인수봉 is fully populated (per the spec's suggested pilot scope); other branches are `"coming-soon"` stubs. Routes carry optional `grade`/`pitchCount` (e.g. 취나드B: `5.9`, 5 pitches) — the spec's `topoImageUrl`/`latestPhotos`/`externalLinks` fields are not added yet since level 4 isn't built.
-3. **Navigation state** (`state.path` in `script.js`) — an array of `{level, id}` steps (`"region" | "mountain" | "peak" | "route"`) that gets pushed via `drillTo(level, id)` on selection and truncated via `goToStep(index)` on breadcrumb back-navigation. `getChain()` resolves `state.path` against `REGIONS` into the actual node objects for rendering; there's no routing/URL sync, so refreshing the page always returns to the top-level map.
-4. **Rendering** (`render()` → `renderBreadcrumb()` + `renderPanelBody()`) — re-renders the breadcrumb (`#breadcrumbList`) and the info panel body (`#infoPanelBody`) from `state.path` on every navigation. `renderPanelBody` branches on the deepest level in the path:
-   - `region`/`mountain`/`peak` levels all go through the shared `renderChildList()` helper, which lists the next level down as buttons (showing `grade`/`pitchCount` as trailing meta text when present) or an empty/"준비 중" message when the node's `status` is `"coming-soon"` or has no children yet.
-   - `route` level goes through `renderRouteDetail()`, a placeholder showing grade/pitch count plus a "topo/photos/links coming soon" note — this is where level 4 should be built out next.
-5. **Marker rendering** (`renderMarkers`) — builds one marker button per region from `REGIONS`, clicking calls `openRegion(regionId)` which resets `state.path` to `[{level:"region", id}]` and opens the panel.
+1. **Data** (`data.js` `REGIONS` array) — the single source of truth, shaped per the spec's Region → Mountain → Peak → Route hierarchy (nested `mountains[].peaks[].routes[]`, with `status: "available" | "coming-soon"` at the region/mountain/peak level to mark which branches have real data vs. stubs). Route objects carry optional `grade`, `pitchCount`, `topoImageUrl`, `latestPhotos[]`, and `externalLinks { youtube[], naverBlog[], instagram[] }`; any absent field is simply skipped at render time. Coverage currently spans 서울(북한산·도봉산), 경기도(도드람산), 강원도(설악산), 전라북도(대둔산·천등산). **The `new-page-make` skill exists for adding entries here — prefer it when adding a 산/봉우리/루트 or filling a `coming-soon` branch.**
+2. **The map is a real administrative SVG** (`index.html`, `viewBox="0 0 524 631"`) — 17 시·도 polygons (`path.region[data-region]`) plus hand-placed name labels (`.region-labels text`). A region is clickable/highlighted only if its polygon AND label both carry the `available` class *and* a matching entry exists in `REGIONS`; **activating a new region requires adding `available` to both SVG nodes** (see how 전라북도 was enabled). `script.js` reads geometry straight from the rendered SVG (`getBBox()`, label `x`/`y`) and converts SVG user units to % of the map box via `MAP_VB_W/H`, so region extents are never hand-maintained.
+3. **Map zoom** (`updateMapView` → `computeFitTransform`/`computeZoomTransform`) — selecting a region zooms/pans the map to frame that region's polygon bbox (clamped by `FRAME_W/H`, `MIN/MAX_SCALE`) and swaps in per-mountain markers (`renderMountainMarkers`); markers counter-scale via the `--zoom-inv` CSS var. Levels deeper than mountain reuse the same zoomed region map.
+4. **Navigation state** (`state.path` in `script.js`) — an array of `{level, id}` steps (`"region" | "mountain" | "peak" | "route"`), pushed via `drillTo(level, id)` and truncated via `goToStep(index)` on breadcrumb back-navigation. `getChain()` resolves `state.path` against `REGIONS` into node objects for rendering. No routing/URL sync — refreshing returns to the top-level map.
+5. **Rendering** (`render()` → `renderBreadcrumb()` + `renderPanelBody()` + `updateMapView()`) — `renderPanelBody` branches on the deepest level:
+   - `region`/`mountain`/`peak` go through the shared `renderChildList()` helper (next level as buttons, `grade`/`pitchCount` shown as trailing meta; "준비 중" message when `coming-soon`/empty).
+   - `route` goes through `renderRouteDetail()`, which renders, in the spec's priority order, 개념도 → 최신 사진 → 외부 링크(유튜브·블로그·인스타) → 난이도·피치, falling back to a "준비 중" note when a route has no detail. Topo/photo `<img>` tags have an `error` handler that swaps in a text link if the image fails to load.
 
-When building out level 4 (route detail), replace `renderRouteDetail()` with real topo/photo/link rendering and extend the `Route` objects in `REGIONS` with `topoImageUrl`/`latestPhotos`/`externalLinks` per the spec's data model — don't add another parallel data structure.
-
-All UI copy is in Korean — match the existing tone and phrasing when adding new strings.
+When adding data, extend the existing `REGIONS` objects in `data.js` — do not introduce a parallel data structure. All UI copy is in Korean; match the existing tone and phrasing.

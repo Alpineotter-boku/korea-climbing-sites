@@ -77,12 +77,16 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 0 20px 64px;
+  /* Sit above the panel backdrop (z-index 15) so the map stays fully bright
+     when the info panel is open, and its markers remain clickable. */
+  position: relative;
+  z-index: 16;
 }
 
 .map-container {
   position: relative;
-  width: min(90vw, 420px);
-  aspect-ratio: 400 / 572;
+  width: min(92vw, 460px);
+  aspect-ratio: 524 / 631;
   overflow: hidden;
 }
 
@@ -100,10 +104,55 @@ body {
   display: block;
 }
 
-.korea-outline {
-  fill: #212c39;
+/* 행정구역(시·도) 폴리곤 */
+.region {
+  fill: #1b232e;
   stroke: #3a4a5c;
-  stroke-width: 2;
+  stroke-width: 1;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+/* 등반지 데이터가 있는 지역 — 강조 + 클릭 가능 */
+.region.available {
+  fill: #2c3a49;
+  cursor: pointer;
+}
+
+.region.available:hover,
+.region.available.selected {
+  fill: #3d5064;
+  stroke: #e8b04b;
+  stroke-width: 1.4;
+}
+
+/* 지역명 라벨 */
+.region-labels {
+  transition: opacity 0.3s ease;
+}
+
+.region-labels text {
+  fill: #8b99a7;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+.region-labels text.small {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.region-labels text.available {
+  fill: #e8b04b;
+}
+
+/* 지역으로 확대했을 때는 전국 지역명 라벨을 숨긴다 */
+.map-container.zoomed .region-labels {
+  opacity: 0;
 }
 
 .map-hint {
@@ -120,11 +169,16 @@ body {
 
 .marker {
   position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  /* The marker sits inside the zoomed map, so it inherits the map's scale.
+     Counter-scaling the WHOLE marker by 1/scale (not just the dot) keeps a
+     constant on-screen size AND — because the box is just the 16px dot and the
+     scale is about its center — keeps the dot centered exactly on the anchor
+     point at any zoom. The label is taken out of flow (absolute) so it never
+     shifts the dot off the anchor. */
+  transform: translate(-50%, -50%) scale(var(--zoom-inv, 1));
+  transform-origin: center center;
+  width: 16px;
+  height: 16px;
   background: none;
   border: none;
   padding: 0;
@@ -133,33 +187,54 @@ body {
 }
 
 .marker-dot {
+  display: block;
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #e8b04b;
   box-shadow: 0 0 0 4px rgba(232, 176, 75, 0.18);
-  transform: scale(var(--zoom-inv, 1));
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* 단계별 마커 색상 — 전국(지역)은 금색, 확대 후 산은 청록색으로 구분 */
+.marker.region-marker .marker-dot {
+  background: #e8b04b;
+  box-shadow: 0 0 0 4px rgba(232, 176, 75, 0.18);
+}
+
+.marker.mountain-marker .marker-dot {
+  background: #4fd1c5;
+  box-shadow: 0 0 0 4px rgba(79, 209, 197, 0.18);
+}
+
+.marker.mountain-marker:hover .marker-dot,
+.marker.mountain-marker:focus-visible .marker-dot {
+  box-shadow: 0 0 0 7px rgba(79, 209, 197, 0.22);
+}
+
+/* 준비 중(coming-soon)은 단계와 무관하게 회색 — 뒤에 두어 위 규칙을 덮는다 */
 .marker.coming-soon .marker-dot {
   background: #4d5b6a;
   box-shadow: 0 0 0 4px rgba(77, 91, 106, 0.18);
 }
 
 .marker-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 5px;
+  transform: translateX(-50%);
   font-size: 0.8rem;
   color: #cfd8e0;
   white-space: nowrap;
   opacity: 0;
-  transform: scale(var(--zoom-inv, 1)) translateY(-2px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease;
   pointer-events: none;
 }
 
 .marker:hover .marker-dot,
 .marker:focus-visible .marker-dot {
-  transform: scale(calc(var(--zoom-inv, 1) * 1.25));
+  transform: scale(1.25);
   box-shadow: 0 0 0 7px rgba(232, 176, 75, 0.22);
 }
 
@@ -171,27 +246,144 @@ body {
 .marker:hover .marker-label,
 .marker:focus-visible .marker-label {
   opacity: 1;
-  transform: scale(var(--zoom-inv, 1)) translateY(0);
 }
 
 /* ---------- info panel ---------- */
 .info-panel {
   position: fixed;
-  top: 0;
+  left: 0;
   right: 0;
-  height: 100%;
-  width: min(360px, 100vw);
+  bottom: 0;
+  width: 100%;
+  max-height: 50vh;
   background: #161c24;
-  border-left: 1px solid #2a3542;
-  padding: 24px;
-  transform: translateX(100%);
+  border-top: 1px solid #2a3542;
+  border-radius: 16px 16px 0 0;
+  padding: 12px 24px 32px;
+  transform: translateY(100%);
   transition: transform 0.25s ease;
   z-index: 20;
   overflow-y: auto;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.4);
 }
 
 .info-panel.open {
-  transform: translateX(0);
+  transform: translateY(0);
+}
+
+/* ---------- panel header (back · search · close) ---------- */
+.info-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  background: #161c24;
+  z-index: 2;
+  padding: 8px 0;
+  margin-bottom: 4px;
+}
+
+.info-panel-back {
+  background: none;
+  border: none;
+  color: #9aa7b5;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 8px;
+  flex: 0 0 auto;
+}
+
+.info-panel-back:hover {
+  color: #eef1f4;
+}
+
+.info-panel-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.route-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0f141b;
+  border: 1px solid #2a3542;
+  border-radius: 8px;
+  color: #eef1f4;
+  font-size: 0.95rem;
+  padding: 8px 12px;
+}
+
+.route-search-input::placeholder {
+  color: #6b7783;
+}
+
+.route-search-input:focus {
+  outline: none;
+  border-color: #4a86c5;
+}
+
+.route-search-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 4px 0 0;
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  list-style: none;
+  background: #1c242e;
+  border: 1px solid #2a3542;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 30;
+}
+
+.route-search-results[hidden] {
+  display: none;
+}
+
+.route-search-results li {
+  margin: 0;
+}
+
+.route-search-results li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: #eef1f4;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+
+.route-search-results li button:hover,
+.route-search-results li button:focus {
+  background: #26313d;
+  outline: none;
+}
+
+.route-search-result-name {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.route-search-result-sub {
+  display: block;
+  font-size: 0.78rem;
+  color: #8a97a4;
+  margin-top: 2px;
+}
+
+.route-search-empty {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: #8a97a4;
 }
 
 .info-panel-close {
@@ -202,8 +394,7 @@ body {
   line-height: 1;
   cursor: pointer;
   padding: 4px 8px;
-  margin-left: auto;
-  display: block;
+  flex: 0 0 auto;
 }
 
 .info-panel-close:hover {
@@ -268,6 +459,96 @@ body {
   color: #cfd8e0;
 }
 
+/* 루트 상세(레벨 4) ------------------------------------------------------- */
+.route-summary {
+  margin: 4px 0 12px;
+  color: #e8b04b;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.route-section {
+  margin-top: 20px;
+}
+
+.route-section h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #eef1f4;
+  border-bottom: 1px solid #2a3542;
+  padding-bottom: 6px;
+}
+
+.route-figure {
+  margin: 0;
+}
+
+.route-topo,
+.route-photo {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #2a3542;
+  background: #1f2833;
+  display: block;
+}
+
+.route-figure-fallback {
+  display: inline-block;
+  padding: 10px 14px;
+  background: #1f2833;
+  border: 1px dashed #2a3542;
+  border-radius: 8px;
+  color: #9aa7b5;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.route-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.route-photo {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.route-link-group-title {
+  margin: 12px 0 6px;
+  font-size: 0.85rem;
+  color: #9aa7b5;
+  font-weight: 600;
+}
+
+.route-link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.route-link-list a {
+  display: block;
+  padding: 9px 12px;
+  background: #1f2833;
+  border: 1px solid #2a3542;
+  border-radius: 8px;
+  color: #cfd8e0;
+  text-decoration: none;
+  font-size: 0.85rem;
+  word-break: break-all;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.route-link-list a:hover {
+  background: #29343f;
+  border-color: #e8b04b;
+  color: #eef1f4;
+}
+
 .info-panel-backdrop {
   position: fixed;
   inset: 0;
@@ -290,6 +571,28 @@ body {
   }
 
   .info-panel {
-    width: 100vw;
+    max-height: 58vh;
+  }
+}
+
+/* PC: 우측 슬라이드 패널 (모바일 기본값인 하단 시트를 덮어씀) */
+@media (min-width: 768px) {
+  .info-panel {
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(420px, 92vw);
+    height: 100%;
+    max-height: none;
+    border-top: none;
+    border-left: 1px solid #2a3542;
+    border-radius: 16px 0 0 16px;
+    transform: translateX(100%);
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.4);
+  }
+
+  .info-panel.open {
+    transform: translateX(0);
   }
 }
