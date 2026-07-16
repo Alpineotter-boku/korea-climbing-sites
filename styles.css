@@ -460,11 +460,76 @@ body {
 }
 
 /* 루트 상세(레벨 4) ------------------------------------------------------- */
-.route-summary {
-  margin: 4px 0 12px;
-  color: #e8b04b;
+/* 위치 · 별점 메타 줄 */
+.route-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  margin: 6px 0 4px;
+}
+
+.route-meta-location {
+  color: #cfd8e0;
+  font-size: 0.9rem;
+}
+
+.route-meta-location b {
+  color: #9aa7b5;
   font-weight: 600;
+  margin-right: 5px;
+}
+
+.route-stars {
+  color: #e8b04b;
+  letter-spacing: 1px;
   font-size: 0.95rem;
+}
+
+/* 길이(피치별) — 칩 형태 */
+.route-pitch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.route-pitch-list li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #1f2833;
+  border: 1px solid #2a3542;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #cfd8e0;
+}
+
+.route-pitch-list .pitch-grade {
+  color: #9aa7b5;
+  font-size: 0.78rem;
+}
+
+/* 확보장비 */
+.route-gear-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.route-gear-list li {
+  padding: 5px 10px;
+  background: #23303c;
+  border-left: 3px solid #e8b04b;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #cfd8e0;
 }
 
 .route-section {
@@ -547,6 +612,118 @@ body {
   background: #29343f;
   border-color: #e8b04b;
   color: #eef1f4;
+}
+
+.route-link-title {
+  display: block;
+}
+
+.route-link-date {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.74rem;
+  color: #9aa7b5;
+}
+
+/* 유튜브 영상 썸네일 카드 (클릭 시 그 자리에서 재생) */
+.route-video-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.route-video-card {
+  display: block;
+  text-decoration: none;
+  color: #cfd8e0;
+}
+
+.route-video-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a3542;
+  background: #1f2833;
+}
+
+.route-video-thumb[role="button"] {
+  cursor: pointer;
+}
+
+.route-video-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.route-video-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.route-video-card:hover .route-video-thumb img {
+  transform: scale(1.05);
+}
+
+.route-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+  padding-left: 3px; /* ▶ 글리프의 좌측 여백 보정 */
+  pointer-events: none;
+}
+
+.route-video-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.route-video-title {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #cfd8e0;
+}
+
+.route-video-date {
+  font-size: 0.74rem;
+  color: #9aa7b5;
+}
+
+.route-video-card:hover .route-video-title {
+  color: #eef1f4;
+}
+
+/* 썸네일이 없거나 로드 실패한 유튜브 링크 — 텍스트 링크 박스로 폴백 */
+.route-video-card-fallback {
+  padding: 9px 12px;
+  background: #1f2833;
+  border: 1px solid #2a3542;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  word-break: break-all;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.route-video-card-fallback:hover {
+  background: #29343f;
+  border-color: #e8b04b;
 }
 
 .info-panel-backdrop {

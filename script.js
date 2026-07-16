@@ -336,7 +336,7 @@ function renderPanelBody(chain) {
   const level = state.path[state.path.length - 1].level;
 
   const heading = document.createElement("h2");
-  heading.textContent = current.name;
+  heading.textContent = level === "route" ? routeHeaderText(current) : current.name;
   infoPanelBody.appendChild(heading);
 
   if (level === "region") {
@@ -416,22 +416,42 @@ function renderChildList({ status, items, emptyMessage, introMessage, onSelect }
   infoPanelBody.appendChild(list);
 }
 
-// 레벨 4 — 루트 상세. 기획서의 표시 우선순위(개념도 → 최신 사진 → 외부 링크
-// → 난이도·피치)를 따른다. 데이터가 없는 항목은 조용히 건너뛰고, 아무 상세
-// 정보도 없으면 "준비 중" 안내만 보여준다.
-function renderRouteDetail(route) {
-  const summaryParts = [];
-  if (route.grade) summaryParts.push(`난이도 ${route.grade}`);
-  if (route.pitchCount) summaryParts.push(`${route.pitchCount}피치`);
+// 루트 상세 헤더 텍스트 — "이름 (피치, 최고난이도)" 형태. 예) 취나드B (5P, 5.9)
+// 피치·난이도가 둘 다 없으면 이름만 반환한다.
+function routeHeaderText(route) {
+  const meta = [];
+  if (route.pitchCount) meta.push(`${route.pitchCount}P`);
+  if (route.grade) meta.push(route.grade);
+  return meta.length ? `${route.name} (${meta.join(", ")})` : route.name;
+}
 
-  if (summaryParts.length > 0) {
-    const summary = document.createElement("p");
-    summary.className = "route-summary";
-    summary.textContent = summaryParts.join(" · ");
-    infoPanelBody.appendChild(summary);
+// 레벨 4 — 루트 상세. 표시 순서: 메타(위치·별점·길이·확보장비) → 개념도 →
+// 최신 사진 → 유튜브 영상 → 블로그/게시물 링크. 이름·피치·난이도는 헤더(h2)에
+// 이미 표시되므로 여기서는 다시 쓰지 않는다. 데이터가 없는 항목은 조용히
+// 건너뛰고, 아무 상세 정보도 없으면 "준비 중" 안내만 보여준다.
+function renderRouteDetail(route) {
+  let hasDetail = false;
+
+  // 0) 메타 — 위치 · 별점 (한 줄)
+  const metaRow = renderRouteMeta(route);
+  if (metaRow) {
+    hasDetail = true;
+    infoPanelBody.appendChild(metaRow);
   }
 
-  let hasDetail = summaryParts.length > 0;
+  // 0-1) 길이(피치별)
+  const pitchSection = renderPitchLengths(route);
+  if (pitchSection) {
+    hasDetail = true;
+    infoPanelBody.appendChild(pitchSection);
+  }
+
+  // 0-2) 확보장비
+  const gearSection = renderGear(route);
+  if (gearSection) {
+    hasDetail = true;
+    infoPanelBody.appendChild(gearSection);
+  }
 
   // 1) 개념도(topo)
   if (route.topoImageUrl) {
@@ -457,13 +477,26 @@ function renderRouteDetail(route) {
     infoPanelBody.appendChild(section);
   }
 
-  // 3) 외부 링크 (네이버 블로그 · 유튜브 · 인스타그램)
+  // 3) 외부 링크
   const links = route.externalLinks || {};
+
+  // 3-1) 유튜브 — 썸네일 카드(클릭 시 그 자리에서 재생), 최신순 최대 3개
+  const youtubeItems = pickRecent(links.youtube, 3);
+  if (youtubeItems.length > 0) {
+    hasDetail = true;
+    const section = renderRouteSection("유튜브 영상");
+    const grid = document.createElement("div");
+    grid.className = "route-video-grid";
+    youtubeItems.forEach((item) => grid.appendChild(renderYoutubeCard(item, route)));
+    section.appendChild(grid);
+    infoPanelBody.appendChild(section);
+  }
+
+  // 3-2) 블로그·게시물(최신순 3개) · 인스타그램(전체) — 제목 + 날짜 링크 목록
   const linkGroups = [
-    { key: "youtube", label: "유튜브 영상" },
-    { key: "naverBlog", label: "블로그 · 후기" },
-    { key: "instagram", label: "인스타그램" },
-  ].filter((g) => Array.isArray(links[g.key]) && links[g.key].length > 0);
+    { key: "naverBlog", label: "블로그 · 게시물", items: pickRecent(links.naverBlog, 3) },
+    { key: "instagram", label: "인스타그램", items: pickRecent(links.instagram, null) },
+  ].filter((g) => g.items.length > 0);
 
   if (linkGroups.length > 0) {
     hasDetail = true;
@@ -476,13 +509,25 @@ function renderRouteDetail(route) {
 
       const list = document.createElement("ul");
       list.className = "route-link-list";
-      links[group.key].forEach((url) => {
+      group.items.forEach((item) => {
         const li = document.createElement("li");
         const a = document.createElement("a");
-        a.href = url;
+        a.href = item.url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
-        a.textContent = prettyLinkLabel(url);
+
+        const title = document.createElement("span");
+        title.className = "route-link-title";
+        title.textContent = item.title || prettyLinkLabel(item.url);
+        a.appendChild(title);
+
+        if (item.date) {
+          const date = document.createElement("span");
+          date.className = "route-link-date";
+          date.textContent = item.date;
+          a.appendChild(date);
+        }
+
         li.appendChild(a);
         list.appendChild(li);
       });
@@ -495,9 +540,86 @@ function renderRouteDetail(route) {
     const note = document.createElement("p");
     note.className = "next-step-note";
     note.textContent =
-      "개념도, 최신 사진, 외부 링크(네이버 블로그·유튜브·인스타그램) 등 상세 정보는 아직 준비 중입니다.";
+      "위치·길이·확보장비, 개념도, 유튜브·블로그 등 상세 정보는 아직 준비 중입니다.";
     infoPanelBody.appendChild(note);
   }
+}
+
+// 위치 + 별점을 한 줄(.route-meta)로. 둘 다 없으면 null.
+function renderRouteMeta(route) {
+  const hasLocation = typeof route.location === "string" && route.location.trim() !== "";
+  const hasStars = Number.isFinite(route.stars) && route.stars > 0;
+  if (!hasLocation && !hasStars) return null;
+
+  const row = document.createElement("div");
+  row.className = "route-meta";
+
+  if (hasLocation) {
+    const loc = document.createElement("span");
+    loc.className = "route-meta-location";
+    const label = document.createElement("b");
+    label.textContent = "위치";
+    loc.append(label, document.createTextNode(route.location));
+    row.appendChild(loc);
+  }
+
+  if (hasStars) {
+    const n = Math.max(0, Math.min(5, Math.round(route.stars)));
+    const stars = document.createElement("span");
+    stars.className = "route-stars";
+    stars.textContent = "★".repeat(n) + "☆".repeat(5 - n);
+    stars.setAttribute("aria-label", `별점 ${n}/5`);
+    row.appendChild(stars);
+  }
+
+  return row;
+}
+
+// 길이(피치별) 섹션. route.pitches = [{ p, length, grade? }] 중 length 가 있는
+// 항목만 표시한다. 표시할 게 없으면 null.
+function renderPitchLengths(route) {
+  if (!Array.isArray(route.pitches)) return null;
+  const items = route.pitches.filter((it) => it && it.length);
+  if (items.length === 0) return null;
+
+  const section = renderRouteSection("길이");
+  const list = document.createElement("ul");
+  list.className = "route-pitch-list";
+  items.forEach((it, i) => {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.className = "pitch-label";
+    label.textContent = `${it.p || i + 1}P ${it.length}`;
+    li.appendChild(label);
+    if (it.grade) {
+      const grade = document.createElement("span");
+      grade.className = "pitch-grade";
+      grade.textContent = it.grade;
+      li.appendChild(grade);
+    }
+    list.appendChild(li);
+  });
+  section.appendChild(list);
+  return section;
+}
+
+// 확보장비 섹션. route.gear = ["퀵드로 - 10개", ...] (문자열 배열) 또는 단일
+// 문자열. 비어 있으면 null.
+function renderGear(route) {
+  let gear = route.gear;
+  if (typeof gear === "string") gear = gear.trim() ? [gear] : [];
+  if (!Array.isArray(gear) || gear.length === 0) return null;
+
+  const section = renderRouteSection("확보장비");
+  const list = document.createElement("ul");
+  list.className = "route-gear-list";
+  gear.forEach((g) => {
+    const li = document.createElement("li");
+    li.textContent = g;
+    list.appendChild(li);
+  });
+  section.appendChild(list);
+  return section;
 }
 
 // 섹션 제목(h3)만 가진 <section>을 만들어 반환한다.
@@ -535,6 +657,130 @@ function renderRouteFigure(title, url) {
   figure.appendChild(img);
   section.appendChild(figure);
   return section;
+}
+
+// 외부 링크 항목을 {url, title?, date?} 형태로 정규화한다. 기존 데이터는
+// 문자열 URL 배열이므로 문자열이면 url 만 채우고, 객체면 url 이 있는 것만 받는다.
+function normalizeLink(entry) {
+  if (typeof entry === "string") return { url: entry };
+  return entry && entry.url ? entry : null;
+}
+
+// 최신순 상위 limit 개를 반환한다. 링크에 date 가 하나라도 있으면 날짜
+// 내림차순으로 정렬하고, 없으면 데이터 배열 순서(최신순으로 관리)를 그대로
+// 사용한다. limit 이 null 이면 전체를 반환한다.
+function pickRecent(entries, limit) {
+  if (!Array.isArray(entries)) return [];
+  const items = entries.map(normalizeLink).filter(Boolean);
+  if (items.some((it) => it.date)) {
+    items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }
+  return limit == null ? items : items.slice(0, limit);
+}
+
+// 유튜브 URL 에서 영상 ID 를 뽑는다(watch?v= · youtu.be · /embed/ · /shorts/).
+function youtubeVideoId(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") return u.pathname.split("/").filter(Boolean)[0] || null;
+    if (u.searchParams.get("v")) return u.searchParams.get("v");
+    const parts = u.pathname.split("/").filter(Boolean);
+    const i = parts.findIndex((p) => p === "embed" || p === "shorts");
+    return i !== -1 && parts[i + 1] ? parts[i + 1] : null;
+  } catch {
+    return null;
+  }
+}
+
+// 유튜브 링크 하나를 썸네일 카드로 만든다. 썸네일(API 없이 열리는
+// img.youtube.com 이미지)을 먼저 보여주고, 클릭하면 그 자리에서 iframe 으로
+// 바로 재생한다(파사드 패턴 — 팝업을 열 때마다 플레이어를 미리 로드하지 않음).
+// 영상 ID를 못 구하거나 썸네일 로드에 실패하면 텍스트 링크로 폴백한다.
+function renderYoutubeCard(item, route) {
+  const id = youtubeVideoId(item.url);
+  const card = document.createElement("div");
+  card.className = "route-video-card";
+
+  // 썸네일/폴백을 담는 상단 영역
+  if (id) {
+    const thumb = document.createElement("div");
+    thumb.className = "route-video-thumb";
+    thumb.setAttribute("role", "button");
+    thumb.tabIndex = 0;
+    thumb.setAttribute("aria-label", (item.title || `${route.name} 유튜브 영상`) + " 재생");
+
+    const img = document.createElement("img");
+    img.src = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+    img.alt = item.title || `${route.name} 유튜브 영상`;
+    img.loading = "lazy";
+    img.addEventListener("error", () => {
+      // 썸네일을 못 불러오면 카드를 텍스트 링크로 폴백한다.
+      thumb.replaceWith(makeVideoFallbackLink(item, route));
+    });
+
+    const play = document.createElement("span");
+    play.className = "route-video-play";
+    play.textContent = "▶";
+
+    thumb.append(img, play);
+
+    // 클릭/엔터 시 썸네일을 iframe 으로 교체해 바로 재생
+    const swap = () => {
+      const iframe = document.createElement("iframe");
+      iframe.className = "route-video-iframe";
+      iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`;
+      iframe.title = item.title || `${route.name} 유튜브 영상`;
+      iframe.allow =
+        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      iframe.allowFullscreen = true;
+      thumb.innerHTML = "";
+      thumb.removeAttribute("role");
+      thumb.removeAttribute("tabindex");
+      thumb.appendChild(iframe);
+    };
+    thumb.addEventListener("click", swap);
+    thumb.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        swap();
+      }
+    });
+
+    card.appendChild(thumb);
+  } else {
+    card.appendChild(makeVideoFallbackLink(item, route));
+  }
+
+  // 캡션 — 제목 + 업로드 날짜
+  const caption = document.createElement("div");
+  caption.className = "route-video-caption";
+
+  const title = document.createElement("span");
+  title.className = "route-video-title";
+  title.textContent = item.title || prettyLinkLabel(item.url);
+  caption.appendChild(title);
+
+  if (item.date) {
+    const date = document.createElement("span");
+    date.className = "route-video-date";
+    date.textContent = item.date;
+    caption.appendChild(date);
+  }
+
+  card.appendChild(caption);
+  return card;
+}
+
+// 유튜브 카드에서 썸네일/임베딩을 쓸 수 없을 때의 텍스트 링크 폴백.
+function makeVideoFallbackLink(item, route) {
+  const a = document.createElement("a");
+  a.href = item.url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.className = "route-video-card-fallback";
+  a.textContent = (item.title || prettyLinkLabel(item.url)) + " ↗";
+  return a;
 }
 
 // URL을 사람이 읽기 좋은 짧은 라벨로 바꾼다(도메인 + 경로 일부).
